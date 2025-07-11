@@ -82,7 +82,7 @@ st.title("KV Analyzer (CV-based)")
 uploaded_file = st.file_uploader("Upload an image file for analysis", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
-    st.image(uploaded_file, caption="Uploaded Image", use_column_width=True)
+    st.image(uploaded_file, caption="Uploaded Image", use_container_width=True)
     analyze_btn = st.button("Analyze")
     if analyze_btn:
         st.info("Analyzing image... Please wait.")
@@ -100,9 +100,9 @@ if uploaded_file is not None:
 
         # Show visualizations
         st.subheader("Highlighted Text Regions")
-        st.image(cv2.cvtColor(features["highlighted_text_image"], cv2.COLOR_BGR2RGB), use_column_width=True)
+        st.image(cv2.cvtColor(features["highlighted_text_image"], cv2.COLOR_BGR2RGB), use_container_width=True)
         st.subheader("Edge Complexity Visualization")
-        st.image(features["edge_image"], use_column_width=True, channels="GRAY")
+        st.image(features["edge_image"], use_container_width=True, channels="GRAY")
 
         # Show feature values and descriptions
         parameter_descriptions = {

@@ -6,8 +6,6 @@ import pytesseract
 import tempfile
 import matplotlib.pyplot as plt
 
-st.set_option('deprecation.showPyplotGlobalUse', False)
-
 # --- Feature Extraction Functions ---
 def extract_color_features(image, k=3):
     img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)

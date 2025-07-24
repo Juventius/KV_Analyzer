@@ -41,11 +41,11 @@ def extract_whitespace_ratio(image):
     total_pixels = image.shape[0] * image.shape[1]
     return white_pixels / total_pixels
 
-def extract_saturation(image):
+def extract_edge_complexity(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     edges = cv2.Canny(gray, 50, 150)
-    saturation = np.sum(edges) / (image.shape[0] * image.shape[1])
-    return saturation, edges
+    edge_complexity = np.sum(edges) / (image.shape[0] * image.shape[1])
+    return edge_complexity, edges
 
 def extract_brightness(image):
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -61,7 +61,7 @@ def extract_features(image):
     color_diversity = extract_color_features(image)
     avg_text_area, text_density, highlighted_text_image = extract_text_features_tesseract(image)
     whitespace_ratio = extract_whitespace_ratio(image)
-    saturation, edge_image = extract_saturation(image)
+    edge_complexity, edge_image = extract_edge_complexity(image)
     brightness = extract_brightness(image)
     saturation = extract_saturation(image)
     return {
@@ -69,7 +69,7 @@ def extract_features(image):
         "Avg Text Area": avg_text_area,
         "Text Density": text_density,
         "Whitespace Ratio": whitespace_ratio,
-        "Edge Complexity": saturation,
+        "Edge Complexity": edge_complexity,
         "Brightness": brightness,
         "Saturation": saturation,
         "highlighted_text_image": highlighted_text_image,

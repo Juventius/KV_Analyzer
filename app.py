@@ -77,7 +77,7 @@ def extract_features(image):
     }
 
 # --- Streamlit UI ---
-st.title("KV Analyzer (CV-based)")
+st.title("KV Analyzer (CV-based) v2.0")
 
 uploaded_file = st.file_uploader("Upload an image file for analysis", type=["jpg", "jpeg", "png"])
 
@@ -125,14 +125,14 @@ if uploaded_file is not None:
         color_diversity = features["Color Diversity"]
         saturation = features["Saturation"]
         st.subheader("Key Insights")
-        great_color = color_diversity < 1
-        great_saturation = saturation > 33
+        great_color = color_diversity < 1.0037
+        great_saturation = saturation > 35.6761
         if great_color and great_saturation:
             st.success("✅ This image has great color diversity and saturation!")
         else:
             if not great_color:
-                st.warning("⚠️ Color diversity is above the recommended threshold (1). Consider maintaining minimal color scheme.")
+                st.warning("⚠️ Color diversity is above the recommended threshold (1.0037). Consider maintaining minimal color scheme.")
             if not great_saturation:
-                st.warning("⚠️ Saturation is below the recommended threshold (33). Consider carefully boosting vibrancy, leveraging accent colors, and checking your color choices for more vivid options.")
+                st.warning("⚠️ Saturation is below the recommended threshold (35.6761). Consider carefully boosting vibrancy, leveraging accent colors, and checking your color choices for more vivid options.")
 
         st.markdown("---")

@@ -41,11 +41,11 @@ def extract_whitespace_ratio(image):
     total_pixels = image.shape[0] * image.shape[1]
     return white_pixels / total_pixels
 
-def extract_edge_complexity(image):
+def extract_saturation(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     edges = cv2.Canny(gray, 50, 150)
-    edge_complexity = np.sum(edges) / (image.shape[0] * image.shape[1])
-    return edge_complexity, edges
+    saturation = np.sum(edges) / (image.shape[0] * image.shape[1])
+    return saturation, edges
 
 def extract_brightness(image):
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -61,7 +61,7 @@ def extract_features(image):
     color_diversity = extract_color_features(image)
     avg_text_area, text_density, highlighted_text_image = extract_text_features_tesseract(image)
     whitespace_ratio = extract_whitespace_ratio(image)
-    edge_complexity, edge_image = extract_edge_complexity(image)
+    saturation, edge_image = extract_saturation(image)
     brightness = extract_brightness(image)
     saturation = extract_saturation(image)
     return {
@@ -69,7 +69,7 @@ def extract_features(image):
         "Avg Text Area": avg_text_area,
         "Text Density": text_density,
         "Whitespace Ratio": whitespace_ratio,
-        "Edge Complexity": edge_complexity,
+        "Edge Complexity": saturation,
         "Brightness": brightness,
         "Saturation": saturation,
         "highlighted_text_image": highlighted_text_image,
@@ -123,16 +123,16 @@ if uploaded_file is not None:
 
         # Highlight Color Diversity and Edge Complexity
         color_diversity = features["Color Diversity"]
-        edge_complexity = features["Edge Complexity"]
+        saturation = features["Saturation"]
         st.subheader("Key Insights")
-        great_color = color_diversity > 0.9
-        great_edge = edge_complexity < 9
-        if great_color and great_edge:
+        great_color = color_diversity < 1
+        great_saturation = saturation > 33
+        if great_color and great_saturation:
             st.success("✅ This image has great color diversity and edge complexity!")
         else:
             if not great_color:
-                st.warning("⚠️ Color diversity is below the recommended threshold (0.9). Consider using a more diverse color palette.")
-            if not great_edge:
-                st.warning("⚠️ Edge complexity is above the recommended threshold (9). Consider simplifying the visual complexity.")
+                st.warning("⚠️ Color diversity is above the recommended threshold (1). Consider maintaining minimal color scheme.")
+            if not great_saturation:
+                st.warning("⚠️ Saturation is below the recommended threshold (33). Consider carefully boosting vibrancy, leveraging accent colors, and checking your color choices for more vivid options.")
 
         st.markdown("---")

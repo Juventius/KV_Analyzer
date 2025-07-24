@@ -128,7 +128,7 @@ if uploaded_file is not None:
         great_color = color_diversity < 1
         great_saturation = saturation > 33
         if great_color and great_saturation:
-            st.success("✅ This image has great color diversity and edge complexity!")
+            st.success("✅ This image has great color diversity and saturation!")
         else:
             if not great_color:
                 st.warning("⚠️ Color diversity is above the recommended threshold (1). Consider maintaining minimal color scheme.")

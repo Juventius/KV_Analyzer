@@ -5,6 +5,30 @@ from collections import Counter
 import pytesseract
 import tempfile
 import matplotlib.pyplot as plt
+import pickle
+import json
+from scipy.optimize import minimize
+
+# --- Load Model and Dependencies ---
+@st.cache_resource
+def load_model_files():
+    try:
+        with open('models/kv_reach_predictor.pkl', 'rb') as f:
+            model = pickle.load(f)
+            
+        with open('models/feature_ranges.pkl', 'rb') as f:
+            feature_ranges = pickle.load(f)
+            
+        with open('models/correlations.pkl', 'rb') as f:
+            correlations = pickle.load(f)
+            
+        with open('models/model_metadata.json', 'r') as f:
+            metadata = json.load(f)
+            
+        return model, feature_ranges, correlations, metadata
+    except Exception as e:
+        st.error(f"Error loading model files: {str(e)}")
+        return None, None, None, None
 
 # --- Feature Extraction Functions ---
 def extract_color_features(image, k=3):
@@ -76,8 +100,87 @@ def extract_features(image):
         "edge_image": edge_image
     }
 
+# --- Model Functions ---
+def find_optimal_features(target_reach, model, feature_ranges):
+    """Find optimal color diversity and saturation values to achieve target reach"""
+    def objective(features):
+        color_diversity, saturation = features
+        predicted_reach = model.predict([[color_diversity, saturation]])[0]
+        return (predicted_reach - target_reach) ** 2
+    
+    # Initial guess (middle of the range)
+    x0 = [
+        (feature_ranges['color_diversity']['min'] + feature_ranges['color_diversity']['max']) / 2,
+        (feature_ranges['saturation']['min'] + feature_ranges['saturation']['max']) / 2
+    ]
+    
+    # Define bounds for optimization
+    bounds = [
+        (feature_ranges['color_diversity']['min'], feature_ranges['color_diversity']['max']),
+        (feature_ranges['saturation']['min'], feature_ranges['saturation']['max'])
+    ]
+    
+    # Run optimization
+    result = minimize(objective, x0, bounds=bounds, method='L-BFGS-B')
+    
+    # Get optimal values
+    optimal_color_diversity, optimal_saturation = result.x
+    
+    # Verify predicted reach with these values
+    predicted_reach = model.predict([[optimal_color_diversity, optimal_saturation]])[0]
+    
+    return {
+        'color_diversity': optimal_color_diversity,
+        'saturation': optimal_saturation,
+        'predicted_reach': predicted_reach,
+        'target_reach': target_reach,
+        'error': abs(predicted_reach - target_reach)
+    }
+
 # --- Streamlit UI ---
 st.title("KV Analyzer (CV-based) v2.0")
+
+# Load the model and related data
+model, feature_ranges, correlations, metadata = load_model_files()
+model_loaded = model is not None
+
+# Add target reach input
+st.sidebar.header("Target Reach Settings")
+if model_loaded:
+    # Calculate min/max possible reach based on model
+    min_possible_reach = model.predict([ [
+        feature_ranges['color_diversity']['min' if correlations[0] > 0 else 'max'],
+        feature_ranges['saturation']['min' if correlations[1] > 0 else 'max']
+    ]])[0]
+    
+    max_possible_reach = model.predict([ [
+        feature_ranges['color_diversity']['max' if correlations[0] > 0 else 'min'],
+        feature_ranges['saturation']['max' if correlations[1] > 0 else 'min']
+    ]])[0]
+    
+    # Round to nearest 1000 for better UX
+    min_reach = round(min_possible_reach / 1000) * 1000
+    max_reach = round(max_possible_reach / 1000) * 1000
+    default_reach = round((min_reach + max_reach) / 2 / 1000) * 1000
+    
+    st.sidebar.info(f"Based on our model, we can predict reaches between {int(min_reach)} and {int(max_reach)}")
+    target_reach = st.sidebar.number_input("Expected Total Reach", 
+                                         min_value=int(min_reach * 0.9), 
+                                         max_value=int(max_reach * 1.1),
+                                         value=int(default_reach),
+                                         step=1000)
+    
+    # Calculate optimal feature values for this target
+    if model_loaded:
+        optimal = find_optimal_features(target_reach, model, feature_ranges)
+        st.sidebar.subheader("Recommended Values")
+        st.sidebar.write(f"For a reach of {int(target_reach)}:")
+        st.sidebar.write(f"- Color Diversity: {optimal['color_diversity']:.4f}")
+        st.sidebar.write(f"- Saturation: {optimal['saturation']:.4f}")
+        st.sidebar.write(f"(Expected reach: {int(optimal['predicted_reach'])}, Error: {optimal['error']:.2f})")
+else:
+    st.sidebar.warning("Model not loaded. Can't calculate target reach recommendations.")
+    target_reach = st.sidebar.number_input("Expected Total Reach", value=10000, step=1000)
 
 uploaded_file = st.file_uploader("Upload an image file for analysis", type=["jpg", "jpeg", "png"])
 
@@ -121,18 +224,94 @@ if uploaded_file is not None:
             formatted_value = f"{value:.9f}" if value < 0.01 else f"{value:.4f}"
             st.write(f"**{name}:** {formatted_value}  \n_{description}_")
 
-        # Highlight Color Diversity and Edge Complexity
-        color_diversity = features["Color Diversity"]
-        saturation = features["Saturation"]
-        st.subheader("Key Insights")
-        great_color = color_diversity < 1.0037
-        great_saturation = saturation < 35.6761
-        if great_color and great_saturation:
-            st.success("✅ This image has great color diversity and saturation!")
-        else:
-            if not great_color:
-                st.warning("⚠️ Color diversity is above the recommended threshold (1.0037). Consider maintaining minimal color scheme.")
-            if not great_saturation:
-                st.warning("⚠️ Saturation is above the recommended threshold (35.6761). Consider reducing vibrancy and choosing less vivid colors.")
+        # Compare image features with optimal values
+        if model_loaded:
+            color_diversity = features["Color Diversity"]
+            saturation = features["Saturation"]
+            
+            # If we have a target reach, show comparison with optimal values
+            if 'optimal' in locals():
+                st.subheader(f"Reach Analysis for Target: {int(target_reach)}")
+                
+                # Calculate predicted reach for the current image
+                current_reach = model.predict([[color_diversity, saturation]])[0]
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Current Color Diversity", f"{color_diversity:.4f}", 
+                             f"{color_diversity - optimal['color_diversity']:.4f}")
+                with col2:
+                    st.metric("Optimal Color Diversity", f"{optimal['color_diversity']:.4f}")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Current Saturation", f"{saturation:.4f}", 
+                             f"{saturation - optimal['saturation']:.4f}")
+                with col2:
+                    st.metric("Optimal Saturation", f"{optimal['saturation']:.4f}")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Predicted Reach", f"{int(current_reach)}", 
+                             f"{int(current_reach - target_reach)}")
+                with col2:
+                    st.metric("Target Reach", f"{int(target_reach)}")
+                
+                # Determine if the image meets the target
+                color_diff = abs(color_diversity - optimal['color_diversity'])
+                saturation_diff = abs(saturation - optimal['saturation'])
+                
+                # Use a 10% threshold for determining if values are close enough
+                color_threshold = abs(optimal['color_diversity'] * 0.1)
+                saturation_threshold = abs(optimal['saturation'] * 0.1)
+                
+                if color_diff <= color_threshold and saturation_diff <= saturation_threshold:
+                    st.success("✅ This image meets the optimal values for your target reach!")
+                else:
+                    st.warning("⚠️ This image's features differ from the optimal values for your target reach.")
+                    
+                    recommendations = []
+                    if correlations[0] < 0:  # Negative correlation for color diversity
+                        if color_diversity > optimal['color_diversity']:
+                            recommendations.append("- Reduce color diversity by using fewer colors in your image")
+                        else:
+                            recommendations.append("- You can increase color diversity slightly")
+                    else:
+                        if color_diversity < optimal['color_diversity']:
+                            recommendations.append("- Increase color diversity by using more colors in your image")
+                        else:
+                            recommendations.append("- You can reduce color diversity slightly")
+                            
+                    if correlations[1] < 0:  # Negative correlation for saturation
+                        if saturation > optimal['saturation']:
+                            recommendations.append("- Reduce saturation by using more muted, less vibrant colors")
+                        else:
+                            recommendations.append("- You can increase saturation slightly")
+                    else:
+                        if saturation < optimal['saturation']:
+                            recommendations.append("- Increase saturation by using more vibrant colors")
+                        else:
+                            recommendations.append("- You can reduce saturation slightly")
+                    
+                    st.subheader("Recommendations:")
+                    for rec in recommendations:
+                        st.write(rec)
+
+        # # Basic insights (legacy code)
+        # st.subheader("General Insights")
+        # great_color = color_diversity < 1.0037
+        # great_saturation = saturation < 35.6761
+        # if great_color and great_saturation:
+        #     st.success("✅ This image has great color diversity and saturation according to general benchmarks!")
+        # else:
+        #     if not great_color:
+        #         st.warning("⚠️ Color diversity is above the recommended threshold (1.0037). Consider maintaining minimal color scheme.")
+        #     if not great_saturation:
+        #         st.warning("⚠️ Saturation is above the recommended threshold (35.6761). Consider reducing vibrancy and choosing less vivid colors.")
 
         st.markdown("---")
+else:
+    if model_loaded:
+        st.write("Upload an image to analyze its features and compare with optimal values for your target reach.")
+    else:
+        st.error("Model files not found. Please check that the model files exist in the 'models' directory.")

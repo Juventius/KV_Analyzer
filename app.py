@@ -138,7 +138,7 @@ def find_optimal_features(target_reach, model, feature_ranges):
     }
 
 # --- Streamlit UI ---
-st.title("KV Analyzer (CV-based) v3.0")
+st.title("KV Analyzer (CV-based) v2.0")
 
 # Load the model and related data
 model, feature_ranges, correlations, metadata = load_model_files()
@@ -238,37 +238,36 @@ if uploaded_file is not None:
                 
                 col1, col2 = st.columns(2)
                 with col1:
+                    # Reverse delta color logic: green when below optimal, red when above
+                    delta = optimal['color_diversity'] - color_diversity  # Reversed calculation
                     st.metric("Current Color Diversity", f"{color_diversity:.4f}", 
-                             f"{color_diversity - optimal['color_diversity']:.4f}")
+                             f"{delta:.4f}", delta_color="normal")
                 with col2:
-                    st.metric("Optimal Color Diversity", f"{optimal['color_diversity']:.4f}")
+                    st.metric("Maximum Threshold", f"{optimal['color_diversity']:.4f}")  # Changed from Optimal to Maximum Threshold
                 
                 col1, col2 = st.columns(2)
                 with col1:
+                    # Reverse delta color logic: green when below optimal, red when above
+                    delta = optimal['saturation'] - saturation  # Reversed calculation
                     st.metric("Current Saturation", f"{saturation:.4f}", 
-                             f"{saturation - optimal['saturation']:.4f}")
+                             f"{delta:.4f}", delta_color="normal")
                 with col2:
-                    st.metric("Optimal Saturation", f"{optimal['saturation']:.4f}")
+                    st.metric("Maximum Threshold", f"{optimal['saturation']:.4f}")  # Changed from Optimal to Maximum Threshold
                 
                 col1, col2 = st.columns(2)
                 with col1:
+                    # Show the difference between current and target reach
+                    reach_diff = current_reach - target_reach
                     st.metric("Predicted Reach", f"{int(current_reach)}", 
-                             f"{int(current_reach - target_reach)}")
+                             f"{int(reach_diff)}")
                 with col2:
                     st.metric("Target Reach", f"{int(target_reach)}")
                 
-                # Determine if the image meets the target
-                color_diff = abs(color_diversity - optimal['color_diversity'])
-                saturation_diff = abs(saturation - optimal['saturation'])
-                
-                # Use a 10% threshold for determining if values are close enough
-                color_threshold = abs(optimal['color_diversity'] * 0.1)
-                saturation_threshold = abs(optimal['saturation'] * 0.1)
-                
-                if color_diff <= color_threshold and saturation_diff <= saturation_threshold:
-                    st.success("✅ This image meets the optimal values for your target reach!")
+                # New logic: check if predicted reach exceeds target reach
+                if current_reach >= target_reach:
+                    st.success("✅ This image is predicted to exceed your target reach!")
                 else:
-                    st.warning("⚠️ This image's features differ from the optimal values for your target reach.")
+                    st.warning("⚠️ This image may not reach your target audience size.")
                     
                     recommendations = []
                     if correlations[0] < 0:  # Negative correlation for color diversity
@@ -314,4 +313,5 @@ else:
     if model_loaded:
         st.write("Upload an image to analyze its features and compare with optimal values for your target reach.")
     else:
+        st.error("Model files not found. Please check that the model files exist in the 'models' directory.")
         st.error("Model files not found. Please check that the model files exist in the 'models' directory.")

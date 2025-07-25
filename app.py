@@ -260,7 +260,7 @@ if uploaded_file is not None:
                 with col1:
                     # Show the difference between current and target reach
                     reach_diff = current_reach - target_reach
-                    st.metric("Predicted Reach", f"{int(current_reach)}", 
+                    st.metric("Predicted Reach (in 1 month)", f"{int(current_reach)}", 
                              f"{int(reach_diff)}")
                 with col2:
                     st.metric("Target Reach", f"{int(target_reach)}")

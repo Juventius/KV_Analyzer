@@ -126,13 +126,13 @@ if uploaded_file is not None:
         saturation = features["Saturation"]
         st.subheader("Key Insights")
         great_color = color_diversity < 1.0037
-        great_saturation = saturation > 35.6761
+        great_saturation = saturation < 35.6761
         if great_color and great_saturation:
             st.success("✅ This image has great color diversity and saturation!")
         else:
             if not great_color:
                 st.warning("⚠️ Color diversity is above the recommended threshold (1.0037). Consider maintaining minimal color scheme.")
             if not great_saturation:
-                st.warning("⚠️ Saturation is below the recommended threshold (35.6761). Consider carefully boosting vibrancy, leveraging accent colors, and checking your color choices for more vivid options.")
+                st.warning("⚠️ Saturation is above the recommended threshold (35.6761). Consider reducing vibrancy and choosing less vivid colors.")
 
         st.markdown("---")

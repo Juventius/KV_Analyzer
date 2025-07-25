@@ -138,7 +138,7 @@ def find_optimal_features(target_reach, model, feature_ranges):
     }
 
 # --- Streamlit UI ---
-st.title("KV Analyzer (CV-based) v2.0")
+st.title("KV Analyzer (CV-based) v3.0")
 
 # Load the model and related data
 model, feature_ranges, correlations, metadata = load_model_files()

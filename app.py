@@ -168,7 +168,7 @@ if model_loaded:
                                          min_value=int(min_reach * 0.9), 
                                          max_value=int(max_reach * 1.1),
                                          value=int(default_reach),
-                                         step=1000)
+                                         step=500)
     
     # Calculate optimal feature values for this target
     if model_loaded:
